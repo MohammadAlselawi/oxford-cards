@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oxford 3000 Flashcards</title>
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root { --primary: #6c5ce7; --secondary: #a29bfe; --bg: #dfe6e9; --card-bg: #ffffff; --text: #2d3436; }
+        body { font-family: 'Tajawal', sans-serif; background-color: var(--bg); margin: 0; padding: 0; color: var(--text); min-height: 100vh; }
+        header { background: white; padding: 1rem 2rem; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; }
+        h1 { margin: 0; font-size: 1.5rem; color: var(--primary); }
+        .controls-area { padding: 20px; max-width: 1200px; margin: 0 auto; display: flex; gap: 15px; flex-wrap: wrap; align-items: center; }
+        select, input[type="text"], .btn { padding: 10px 15px; border-radius: 8px; border: 1px solid #ddd; outline: none; transition: 0.3s; }
+        .btn { background: var(--primary); color: white; border: none; cursor: pointer; font-weight: bold; }
+        .btn:hover { background: #5649c0; transform: translateY(-2px); }
+        .btn-outline { background: transparent; border: 1px solid var(--primary); color: var(--primary); }
+        .btn-outline:hover { background: var(--secondary); color: white; }
+        
+        .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; padding: 0 20px 40px; max-width: 1200px; margin: 0 auto; }
+        .word-item { background: var(--card-bg); padding: 15px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); display: flex; justify-content: space-between; align-items: center; cursor: pointer; border: 2px solid transparent; }
+        .word-item.selected { border-color: var(--primary); background-color: #f0f3ff; }
+        .word-text { font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 1.1rem; }
+        input[type="checkbox"] { transform: scale(1.5); accent-color: var(--primary); cursor: pointer; }
+
+        /* Flashcard Styles */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); z-index: 1000; display: flex; flex-direction: column; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
+        .flashcard-container { perspective: 1000px; width: 90%; max-width: 500px; height: 350px; cursor: pointer; }
+        .flashcard { width: 100%; height: 100%; position: relative; transform-style: preserve-3d; transition: transform 0.6s; border-radius: 20px; box-shadow: 0 20px 50px rgba(0,0,0,0.1); }
+        .flashcard.flipped { transform: rotateY(180deg); }
+        .card-face { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; border-radius: 20px; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 2rem; box-sizing: border-box; text-align: center; }
+        .card-front { background: white; color: var(--primary); border: 1px solid #eee; }
+        .card-back { background: var(--primary); color: white; transform: rotateY(180deg); }
+        .big-word { font-family: 'Poppins', sans-serif; font-size: 2.5rem; margin: 0; }
+        .definition-text { font-size: 1.5rem; line-height: 1.6; }
+        .nav-controls { margin-top: 30px; display: flex; gap: 20px; }
+        .icon-btn { background: white; border: 1px solid #ddd; width: 50px; height: 50px; border-radius: 50%; font-size: 1.2rem; cursor: pointer; display: flex; justify-content: center; align-items: center; }
+        .icon-btn:hover { background: var(--primary); color: white; }
+        .hidden { display: none !important; }
+        
+        #loading-msg { text-align: center; margin-top: 50px; font-size: 1.2rem; color: #666; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 2rem;">🎓</span>
+            <h1>Oxford Flashcards</h1>
+        </div>
+        <div id="selection-counter" style="font-weight: bold; color: var(--primary);">0 كلمات مختارة</div>
+    </header>
+
+    <div id="loading-msg">
+        <p>⏳ جاري تحميل الكلمات من السيرفر...</p>
+    </div>
+
+    <div id="main-interface" class="hidden">
+        <div class="controls-area">
+            <select id="cefr-filter" onchange="renderList()">
+                <option value="all">جميع المستويات</option>
+            </select>
+            <input type="text" id="search-input" placeholder="🔍 بحث..." oninput="renderList()">
+            <div style="flex-grow: 1;"></div>
+            <button class="btn btn-outline" onclick="selectRandom(10)">🎲 10 عشوائي</button>
+            <button class="btn btn-outline" onclick="toggleSelectAll()">✅ الكل</button>
+            <button class="btn" onclick="startFlashcards()">ابدأ الحفظ 🚀</button>
+        </div>
+        <div id="word-grid" class="grid-container"></div>
+    </div>
+
+    <div id="flashcard-modal" class="modal-overlay hidden">
+        <div style="margin-bottom: 20px; color: #555;">بطاقة <span id="current-index">1</span> من <span id="total-count">10</span></div>
+        <div class="flashcard-container" onclick="flipCard()">
+            <div class="flashcard" id="card-element">
+                <div class="card-face card-front">
+                    <h2 class="big-word" id="fc-word">Word</h2>
+                    <span id="fc-pos" style="background:#eee; padding:5px 10px; border-radius:10px; margin-top:10px; color:#666;">pos</span>
+                </div>
+                <div class="card-face card-back">
+                    <p class="definition-text" id="fc-def">Definition</p>
+                    <small id="fc-level">Level</small>
+                </div>
+            </div>
+        </div>
+        <div class="nav-controls">
+            <button class="icon-btn" onclick="prevCard()">⬅️</button>
+            <button class="icon-btn" onclick="speakWord()">🔊</button>
+            <button class="icon-btn" onclick="nextCard()">➡️</button>
+        </div>
+        <button class="btn btn-outline" style="margin-top: 30px; border-color: #666; color: #666;" onclick="closeFlashcards()">إنهاء</button>
+    </div>
+
+<script>
+    let allData = [];
+    let displayedData = [];
+    let selectedIndices = new Set();
+    let practiceQueue = [];
+    let currentCardIndex = 0;
+
+    // --- التحميل التلقائي للملف ---
+    window.onload = async function() {
+        try {
+            // هنا نطلب الملف الموجود في نفس المجلد
+            const response = await fetch('./data.xlsx'); 
+            
+            if (!response.ok) throw new Error("لم يتم العثور على ملف البيانات");
+
+            const arrayBuffer = await response.arrayBuffer();
+            const workbook = XLSX.read(arrayBuffer, {type: 'array'});
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const jsonData = XLSX.utils.sheet_to_json(sheet, {header: 1});
+            
+            processData(jsonData);
+        } catch (error) {
+            document.getElementById('loading-msg').innerHTML = `
+                <p style="color:red">❌ حدث خطأ في تحميل البيانات.</p>
+                <p>تأكد من وجود ملف باسم <b>data.xlsx</b> بجانب ملف index.html</p>
+                <small>${error.message}</small>
+            `;
+        }
+    };
+
+    function processData(rows) {
+        allData = rows.slice(1).map((row, index) => {
+            if (!row[0]) return null;
+            let rawWord = row[0].toString();
+            let cleanWord = rawWord.replace(/\(.*\)/, '').trim();
+            let pos = rawWord.match(/\((.*?)\)/)?.[1] || '';
+            // العمود الرابع هو التعريف، إذا فارغ نضع رسالة
+            let definition = row[3] || '...'; 
+            
+            return { id: index, original: rawWord, word: cleanWord, pos: pos, cefr: row[1] || 'General', definition: definition };
+        }).filter(item => item !== null);
+
+        setupFilters();
+        renderList();
+        
+        document.getElementById('loading-msg').classList.add('hidden');
+        document.getElementById('main-interface').classList.remove('hidden');
+    }
+
+    function setupFilters() {
+        const levels = [...new Set(allData.map(d => d.cefr))].sort();
+        const select = document.getElementById('cefr-filter');
+        levels.forEach(lvl => {
+            const opt = document.createElement('option');
+            opt.value = lvl;
+            opt.innerText = lvl;
+            select.appendChild(opt);
+        });
+    }
+
+    function renderList() {
+        const filterLevel = document.getElementById('cefr-filter').value;
+        const searchTerm = document.getElementById('search-input').value.toLowerCase();
+        const grid = document.getElementById('word-grid');
+        grid.innerHTML = '';
+
+        displayedData = allData.filter(item => {
+            const matchLevel = filterLevel === 'all' || item.cefr === filterLevel;
+            const matchSearch = item.word.toLowerCase().includes(searchTerm);
+            return matchLevel && matchSearch;
+        });
+
+        // تحسين الأداء: عرض أول 100 كلمة فقط إذا لم يكن هناك بحث لتجنب تهنيج المتصفح
+        const limitData = searchTerm ? displayedData : displayedData.slice(0, 100);
+
+        limitData.forEach(item => {
+            const isSelected = selectedIndices.has(item.id);
+            const div = document.createElement('div');
+            div.className = `word-item ${isSelected ? 'selected' : ''}`;
+            div.onclick = (e) => { if(e.target.type !== 'checkbox') toggleSelection(item.id); };
+            div.innerHTML = `<div><div class="word-text">${item.word}</div><span style="font-size:0.8rem; color:#aaa">${item.pos}</span></div><input type="checkbox" ${isSelected ? 'checked' : ''} onchange="toggleSelection(${item.id})">`;
+            grid.appendChild(div);
+        });
+        
+        if (!searchTerm && displayedData.length > 100) {
+            const moreInfo = document.createElement('div');
+            moreInfo.style.gridColumn = "1 / -1";
+            moreInfo.style.textAlign = "center";
+            moreInfo.style.color = "#777";
+            moreInfo.innerText = `...و ${displayedData.length - 100} كلمة أخرى (استخدم البحث للعثور عليها)`;
+            grid.appendChild(moreInfo);
+        }
+    }
+
+    function toggleSelection(id) {
+        if (selectedIndices.has(id)) selectedIndices.delete(id);
+        else selectedIndices.add(id);
+        document.getElementById('selection-counter').innerText = `${selectedIndices.size} كلمات مختارة`;
+        renderList();
+    }
+    
+    function toggleSelectAll() {
+        if (displayedData.length > 200) { alert("عدد الكلمات كبير جداً، يرجى تصفية النتائج أولاً"); return; }
+        const allSelected = displayedData.every(d => selectedIndices.has(d.id));
+        displayedData.forEach(d => allSelected ? selectedIndices.delete(d.id) : selectedIndices.add(d.id));
+        document.getElementById('selection-counter').innerText = `${selectedIndices.size} كلمات مختارة`;
+        renderList();
+    }
+
+    function selectRandom(count) {
+        selectedIndices.clear();
+        const pool = displayedData.map(d => d.id).sort(() => 0.5 - Math.random()).slice(0, count);
+        pool.forEach(id => selectedIndices.add(id));
+        document.getElementById('selection-counter').innerText = `${selectedIndices.size} كلمات مختارة`;
+        renderList();
+    }
+
+    function startFlashcards() {
+        if (selectedIndices.size === 0) { alert("اختر كلمة واحدة على الأقل!"); return; }
+        practiceQueue = allData.filter(d => selectedIndices.has(d.id)).sort(() => Math.random() - 0.5);
+        currentCardIndex = 0;
+        showCard(0);
+        document.getElementById('flashcard-modal').classList.remove('hidden');
+    }
+
+    function showCard(index) {
+        const card = practiceQueue[index];
+        const cardElem = document.getElementById('card-element');
+        cardElem.classList.remove('flipped');
+        setTimeout(() => {
+            document.getElementById('fc-word').innerText = card.word;
+            document.getElementById('fc-pos').innerText = card.pos;
+            document.getElementById('fc-def').innerText = card.definition;
+            document.getElementById('fc-level').innerText = card.cefr;
+            document.getElementById('current-index').innerText = index + 1;
+            document.getElementById('total-count').innerText = practiceQueue.length;
+        }, 200);
+    }
+
+    function flipCard() { document.getElementById('card-element').classList.toggle('flipped'); }
+    function nextCard() { if (currentCardIndex < practiceQueue.length - 1) showCard(++currentCardIndex); else { alert("انتهيت! 🎉"); closeFlashcards(); }}
+    function prevCard() { if (currentCardIndex > 0) showCard(--currentCardIndex); }
+    function closeFlashcards() { document.getElementById('flashcard-modal').classList.add('hidden'); }
+    function speakWord() { window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(practiceQueue[currentCardIndex].word); u.lang = 'en-GB'; window.speechSynthesis.speak(u); }
+</script>
+</body>
+</html>
