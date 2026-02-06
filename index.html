@@ -3,240 +3,303 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Oxford 3000 Flashcards</title>
+    <title>Oxford 3000 Sets</title>
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
     
     <style>
-        :root { --primary: #6c5ce7; --secondary: #a29bfe; --bg: #dfe6e9; --card-bg: #ffffff; --text: #2d3436; }
+        :root { --primary: #6c5ce7; --secondary: #a29bfe; --bg: #f1f2f6; --card-bg: #ffffff; --text: #2d3436; }
         body { font-family: 'Tajawal', sans-serif; background-color: var(--bg); margin: 0; padding: 0; color: var(--text); min-height: 100vh; }
-        header { background: white; padding: 1rem 2rem; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; }
-        h1 { margin: 0; font-size: 1.5rem; color: var(--primary); }
-        .controls-area { padding: 20px; max-width: 1200px; margin: 0 auto; display: flex; gap: 15px; flex-wrap: wrap; align-items: center; }
-        select, input[type="text"], .btn { padding: 10px 15px; border-radius: 8px; border: 1px solid #ddd; outline: none; transition: 0.3s; }
-        .btn { background: var(--primary); color: white; border: none; cursor: pointer; font-weight: bold; }
-        .btn:hover { background: #5649c0; transform: translateY(-2px); }
-        .btn-outline { background: transparent; border: 1px solid var(--primary); color: var(--primary); }
-        .btn-outline:hover { background: var(--secondary); color: white; }
         
-        .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; padding: 0 20px 40px; max-width: 1200px; margin: 0 auto; }
-        .word-item { background: var(--card-bg); padding: 15px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); display: flex; justify-content: space-between; align-items: center; cursor: pointer; border: 2px solid transparent; }
-        .word-item.selected { border-color: var(--primary); background-color: #f0f3ff; }
-        .word-text { font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 1.1rem; }
-        input[type="checkbox"] { transform: scale(1.5); accent-color: var(--primary); cursor: pointer; }
+        /* Header */
+        header { background: white; padding: 1rem 2rem; box-shadow: 0 4px 20px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        h1 { margin: 0; font-size: 1.4rem; color: var(--primary); display: flex; align-items: center; gap: 10px; }
+        
+        /* Controls Area */
+        .controls-area { background: white; padding: 20px; border-radius: 15px; margin: 20px auto; max-width: 1200px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); display: flex; flex-direction: column; gap: 15px; width: 90%; }
+        
+        /* Sets Bar */
+        .sets-container { display: flex; gap: 10px; overflow-x: auto; padding: 10px 5px; scrollbar-width: thin; border-bottom: 2px solid #f0f0f0; padding-bottom: 20px; }
+        .set-btn { background: white; border: 2px solid #dfe6e9; padding: 8px 16px; border-radius: 20px; cursor: pointer; white-space: nowrap; font-weight: bold; color: #636e72; transition: 0.2s; }
+        .set-btn:hover { border-color: var(--primary); color: var(--primary); }
+        .set-btn.active { background: var(--primary); color: white; border-color: var(--primary); box-shadow: 0 4px 10px rgba(108, 92, 231, 0.3); }
 
-        /* Flashcard Styles */
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); z-index: 1000; display: flex; flex-direction: column; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
-        .flashcard-container { perspective: 1000px; width: 90%; max-width: 500px; height: 350px; cursor: pointer; }
-        .flashcard { width: 100%; height: 100%; position: relative; transform-style: preserve-3d; transition: transform 0.6s; border-radius: 20px; box-shadow: 0 20px 50px rgba(0,0,0,0.1); }
+        /* Buttons & Inputs */
+        select, .btn { padding: 10px 15px; border-radius: 8px; border: 1px solid #ddd; outline: none; font-family: inherit; }
+        .btn { background: var(--primary); color: white; border: none; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(108, 92, 231, 0.2); }
+        .btn-outline { background: transparent; border: 1px solid var(--primary); color: var(--primary); }
+        .btn-outline:hover { background: #f0f3ff; }
+
+        /* Grid */
+        .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 15px; padding: 0 20px 40px; max-width: 1240px; margin: 0 auto; }
+        .word-item { background: var(--card-bg); padding: 15px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; border: 2px solid transparent; transition: 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.03); }
+        .word-item:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+        .word-item.selected { border-color: var(--primary); background-color: #f8f9fe; }
+        .word-text { font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 1.1rem; color: #2d3436; }
+        input[type="checkbox"] { transform: scale(1.3); accent-color: var(--primary); cursor: pointer; }
+
+        /* Flashcard Modal */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.98); z-index: 1000; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .flashcard-container { perspective: 1000px; width: 90%; max-width: 500px; height: 320px; cursor: pointer; margin-bottom: 20px; }
+        .flashcard { width: 100%; height: 100%; position: relative; transform-style: preserve-3d; transition: transform 0.6s; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); border: 1px solid #eee; }
         .flashcard.flipped { transform: rotateY(180deg); }
         .card-face { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; border-radius: 20px; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 2rem; box-sizing: border-box; text-align: center; }
-        .card-front { background: white; color: var(--primary); border: 1px solid #eee; }
+        .card-front { background: white; color: var(--primary); }
         .card-back { background: var(--primary); color: white; transform: rotateY(180deg); }
-        .big-word { font-family: 'Poppins', sans-serif; font-size: 2.5rem; margin: 0; }
-        .definition-text { font-size: 1.5rem; line-height: 1.6; }
-        .nav-controls { margin-top: 30px; display: flex; gap: 20px; }
-        .icon-btn { background: white; border: 1px solid #ddd; width: 50px; height: 50px; border-radius: 50%; font-size: 1.2rem; cursor: pointer; display: flex; justify-content: center; align-items: center; }
-        .icon-btn:hover { background: var(--primary); color: white; }
-        .hidden { display: none !important; }
         
-        #loading-msg { text-align: center; margin-top: 50px; font-size: 1.2rem; color: #666; }
+        .nav-controls { display: flex; gap: 15px; }
+        .icon-btn { width: 50px; height: 50px; border-radius: 50%; border: 1px solid #ddd; background: white; font-size: 1.2rem; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: 0.2s; }
+        .icon-btn:hover { background: var(--primary); color: white; border-color: var(--primary); }
+        
+        .hidden { display: none !important; }
+        .empty-state { text-align: center; padding: 40px; color: #b2bec3; }
     </style>
 </head>
 <body>
 
     <header>
-        <div style="display: flex; align-items: center; gap: 10px;">
-            <span style="font-size: 2rem;">🎓</span>
-            <h1>Oxford Flashcards</h1>
-        </div>
-        <div id="selection-counter" style="font-weight: bold; color: var(--primary);">0 كلمات مختارة</div>
+        <h1><span>🎓</span> Oxford Master</h1>
+        <div id="selection-counter" style="font-weight: bold; color: var(--primary); background: #f0f3ff; padding: 5px 15px; border-radius: 20px;">0 مختارة</div>
     </header>
 
-    <div id="loading-msg">
-        <p>⏳ جاري تحميل الكلمات من السيرفر...</p>
-    </div>
+    <div id="loading-msg" style="text-align: center; margin-top: 50px;">⏳ جاري تحميل الكلمات...</div>
 
     <div id="main-interface" class="hidden">
+        
         <div class="controls-area">
-            <select id="cefr-filter" onchange="renderList()">
-                <option value="all">جميع المستويات</option>
-            </select>
-            <input type="text" id="search-input" placeholder="🔍 بحث..." oninput="renderList()">
-            <div style="flex-grow: 1;"></div>
-            <button class="btn btn-outline" onclick="selectRandom(10)">🎲 10 عشوائي</button>
-            <button class="btn btn-outline" onclick="toggleSelectAll()">✅ الكل</button>
-            <button class="btn" onclick="startFlashcards()">ابدأ الحفظ 🚀</button>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <label style="font-weight: bold;">اختر المستوى:</label>
+                <select id="cefr-filter" onchange="generateSets()" style="flex-grow: 1; max-width: 200px;">
+                    </select>
+            </div>
+
+            <div class="sets-container" id="sets-bar">
+                </div>
+
+            <div style="display: flex; gap: 10px; justify-content: space-between; border-top: 1px solid #eee; padding-top: 15px;">
+                <button class="btn btn-outline" onclick="selectAllInSet()">✅ تحديد المجموعة كاملة</button>
+                <button class="btn" onclick="startFlashcards()">ابدأ الحفظ 🚀</button>
+            </div>
         </div>
+
+        <h3 id="set-title" style="max-width: 1200px; margin: 0 auto 15px; padding: 0 20px; color: #636e72;">الكلمات:</h3>
         <div id="word-grid" class="grid-container"></div>
     </div>
 
     <div id="flashcard-modal" class="modal-overlay hidden">
-        <div style="margin-bottom: 20px; color: #555;">بطاقة <span id="current-index">1</span> من <span id="total-count">10</span></div>
+        <div style="margin-bottom: 20px; color: #888;">بطاقة <span id="current-index">1</span> من <span id="total-count">10</span></div>
+        
         <div class="flashcard-container" onclick="flipCard()">
             <div class="flashcard" id="card-element">
                 <div class="card-face card-front">
-                    <h2 class="big-word" id="fc-word">Word</h2>
-                    <span id="fc-pos" style="background:#eee; padding:5px 10px; border-radius:10px; margin-top:10px; color:#666;">pos</span>
+                    <h2 style="font-family: 'Poppins'; font-size: 2.5rem; margin: 0;" id="fc-word">Word</h2>
+                    <span id="fc-pos" style="background:#f1f2f6; padding:4px 12px; border-radius:10px; margin-top:10px; font-size:0.9rem; color:#636e72;">noun</span>
                 </div>
                 <div class="card-face card-back">
-                    <p class="definition-text" id="fc-def">Definition</p>
-                    <small id="fc-level">Level</small>
+                    <p style="font-size: 1.6rem; line-height: 1.5;" id="fc-def">Definition</p>
+                    <small id="fc-level" style="opacity: 0.8;">A1</small>
                 </div>
             </div>
         </div>
+
         <div class="nav-controls">
             <button class="icon-btn" onclick="prevCard()">⬅️</button>
             <button class="icon-btn" onclick="speakWord()">🔊</button>
             <button class="icon-btn" onclick="nextCard()">➡️</button>
         </div>
-        <button class="btn btn-outline" style="margin-top: 30px; border-color: #666; color: #666;" onclick="closeFlashcards()">إنهاء</button>
+        <button onclick="closeFlashcards()" style="margin-top: 30px; background: none; border: none; color: #888; cursor: pointer; text-decoration: underline;">إنهاء الجلسة</button>
     </div>
 
 <script>
     let allData = [];
-    let displayedData = [];
+    let currentLevelData = []; // كلمات المستوى المختار فقط
+    let currentSetData = [];   // كلمات المجموعة المختارة (الـ 20 كلمة)
     let selectedIndices = new Set();
     let practiceQueue = [];
     let currentCardIndex = 0;
+    
+    // حجم المجموعة (عدد الكلمات في كل صفحة)
+    const SET_SIZE = 20;
 
-    // --- التحميل التلقائي للملف ---
     window.onload = async function() {
         try {
-            // هنا نطلب الملف الموجود في نفس المجلد
-            const response = await fetch('./data.xlsx'); 
+            const response = await fetch('./data.xlsx');
+            if (!response.ok) throw new Error("ملف data.xlsx غير موجود");
+            const buffer = await response.arrayBuffer();
+            const wb = XLSX.read(buffer, {type: 'array'});
+            const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header: 1});
             
-            if (!response.ok) throw new Error("لم يتم العثور على ملف البيانات");
-
-            const arrayBuffer = await response.arrayBuffer();
-            const workbook = XLSX.read(arrayBuffer, {type: 'array'});
-            const sheet = workbook.Sheets[workbook.SheetNames[0]];
-            const jsonData = XLSX.utils.sheet_to_json(sheet, {header: 1});
-            
-            processData(jsonData);
+            processData(rows);
         } catch (error) {
-            document.getElementById('loading-msg').innerHTML = `
-                <p style="color:red">❌ حدث خطأ في تحميل البيانات.</p>
-                <p>تأكد من وجود ملف باسم <b>data.xlsx</b> بجانب ملف index.html</p>
-                <small>${error.message}</small>
-            `;
+            document.getElementById('loading-msg').innerHTML = `<p style="color:red">❌ خطأ: تأكد من وجود ملف data.xlsx</p>`;
         }
     };
 
     function processData(rows) {
-        allData = rows.slice(1).map((row, index) => {
+        // تخطي الصف الأول ومعالجة البيانات
+        allData = rows.slice(1).map((row, i) => {
             if (!row[0]) return null;
-            let rawWord = row[0].toString();
-            let cleanWord = rawWord.replace(/\(.*\)/, '').trim();
-            let pos = rawWord.match(/\((.*?)\)/)?.[1] || '';
-            // العمود الرابع هو التعريف، إذا فارغ نضع رسالة
-            let definition = row[3] || '...'; 
-            
-            return { id: index, original: rawWord, word: cleanWord, pos: pos, cefr: row[1] || 'General', definition: definition };
-        }).filter(item => item !== null);
+            let raw = row[0].toString();
+            return {
+                id: i,
+                word: raw.replace(/\(.*\)/, '').trim(),
+                pos: raw.match(/\((.*?)\)/)?.[1] || '',
+                cefr: row[1] || 'Uncategorized', // تأكد أن المستوى في العمود الثاني
+                def: row[3] || '...'
+            };
+        }).filter(x => x);
 
-        setupFilters();
-        renderList();
-        
-        document.getElementById('loading-msg').classList.add('hidden');
-        document.getElementById('main-interface').classList.remove('hidden');
-    }
-
-    function setupFilters() {
+        // تعبئة قائمة المستويات
         const levels = [...new Set(allData.map(d => d.cefr))].sort();
         const select = document.getElementById('cefr-filter');
         levels.forEach(lvl => {
             const opt = document.createElement('option');
-            opt.value = lvl;
-            opt.innerText = lvl;
+            opt.value = lvl; opt.innerText = `Level ${lvl}`;
             select.appendChild(opt);
         });
+
+        document.getElementById('loading-msg').classList.add('hidden');
+        document.getElementById('main-interface').classList.remove('hidden');
+        
+        // تشغيل أول مستوى تلقائياً
+        generateSets();
     }
 
-    function renderList() {
-        const filterLevel = document.getElementById('cefr-filter').value;
-        const searchTerm = document.getElementById('search-input').value.toLowerCase();
+    // 1. تقسيم المستوى إلى مجموعات
+    function generateSets() {
+        const level = document.getElementById('cefr-filter').value;
+        currentLevelData = allData.filter(d => d.cefr === level);
+        
+        const setsCount = Math.ceil(currentLevelData.length / SET_SIZE);
+        const setsBar = document.getElementById('sets-bar');
+        setsBar.innerHTML = '';
+
+        if (currentLevelData.length === 0) {
+            setsBar.innerHTML = '<span style="color:#aaa">لا توجد كلمات لهذا المستوى</span>';
+            renderGrid([]);
+            return;
+        }
+
+        // إنشاء زر لكل مجموعة
+        for (let i = 0; i < setsCount; i++) {
+            const btn = document.createElement('div');
+            btn.className = 'set-btn';
+            btn.innerText = `مجموعة ${i + 1}`;
+            btn.onclick = () => loadSet(i, btn);
+            setsBar.appendChild(btn);
+        }
+
+        // تفعيل المجموعة الأولى تلقائياً
+        if (setsBar.firstChild) setsBar.firstChild.click();
+    }
+
+    // 2. عرض كلمات المجموعة المختارة
+    function loadSet(setIndex, btnElement) {
+        // تحديث الستايل للأزرار
+        document.querySelectorAll('.set-btn').forEach(b => b.classList.remove('active'));
+        btnElement.classList.add('active');
+
+        // حساب البداية والنهاية
+        const start = setIndex * SET_SIZE;
+        const end = start + SET_SIZE;
+        
+        currentSetData = currentLevelData.slice(start, end);
+        
+        const title = document.getElementById('set-title');
+        title.innerHTML = `عرض الكلمات من <b>${start + 1}</b> إلى <b>${Math.min(end, currentLevelData.length)}</b> (المستوى ${document.getElementById('cefr-filter').value})`;
+
+        renderGrid();
+    }
+
+    function renderGrid() {
         const grid = document.getElementById('word-grid');
         grid.innerHTML = '';
 
-        displayedData = allData.filter(item => {
-            const matchLevel = filterLevel === 'all' || item.cefr === filterLevel;
-            const matchSearch = item.word.toLowerCase().includes(searchTerm);
-            return matchLevel && matchSearch;
-        });
+        if(currentSetData.length === 0) {
+            grid.innerHTML = '<div class="empty-state">لا توجد كلمات للعرض</div>';
+            return;
+        }
 
-        // تحسين الأداء: عرض أول 100 كلمة فقط إذا لم يكن هناك بحث لتجنب تهنيج المتصفح
-        const limitData = searchTerm ? displayedData : displayedData.slice(0, 100);
-
-        limitData.forEach(item => {
+        currentSetData.forEach(item => {
             const isSelected = selectedIndices.has(item.id);
             const div = document.createElement('div');
             div.className = `word-item ${isSelected ? 'selected' : ''}`;
-            div.onclick = (e) => { if(e.target.type !== 'checkbox') toggleSelection(item.id); };
-            div.innerHTML = `<div><div class="word-text">${item.word}</div><span style="font-size:0.8rem; color:#aaa">${item.pos}</span></div><input type="checkbox" ${isSelected ? 'checked' : ''} onchange="toggleSelection(${item.id})">`;
+            div.onclick = (e) => { 
+                if(e.target.type !== 'checkbox') toggleSelection(item.id); 
+            };
+            
+            div.innerHTML = `
+                <div>
+                    <div class="word-text">${item.word}</div>
+                    <span style="font-size:0.8rem; color:#b2bec3;">${item.pos}</span>
+                </div>
+                <input type="checkbox" ${isSelected ? 'checked' : ''} onchange="toggleSelection(${item.id})">
+            `;
             grid.appendChild(div);
         });
-        
-        if (!searchTerm && displayedData.length > 100) {
-            const moreInfo = document.createElement('div');
-            moreInfo.style.gridColumn = "1 / -1";
-            moreInfo.style.textAlign = "center";
-            moreInfo.style.color = "#777";
-            moreInfo.innerText = `...و ${displayedData.length - 100} كلمة أخرى (استخدم البحث للعثور عليها)`;
-            grid.appendChild(moreInfo);
-        }
     }
 
+    // منطق الاختيار
     function toggleSelection(id) {
         if (selectedIndices.has(id)) selectedIndices.delete(id);
         else selectedIndices.add(id);
-        document.getElementById('selection-counter').innerText = `${selectedIndices.size} كلمات مختارة`;
-        renderList();
-    }
-    
-    function toggleSelectAll() {
-        if (displayedData.length > 200) { alert("عدد الكلمات كبير جداً، يرجى تصفية النتائج أولاً"); return; }
-        const allSelected = displayedData.every(d => selectedIndices.has(d.id));
-        displayedData.forEach(d => allSelected ? selectedIndices.delete(d.id) : selectedIndices.add(d.id));
-        document.getElementById('selection-counter').innerText = `${selectedIndices.size} كلمات مختارة`;
-        renderList();
+        
+        updateCounter();
+        renderGrid(); // إعادة رسم لتحديث الألوان
     }
 
-    function selectRandom(count) {
-        selectedIndices.clear();
-        const pool = displayedData.map(d => d.id).sort(() => 0.5 - Math.random()).slice(0, count);
-        pool.forEach(id => selectedIndices.add(id));
-        document.getElementById('selection-counter').innerText = `${selectedIndices.size} كلمات مختارة`;
-        renderList();
+    function selectAllInSet() {
+        const allSelected = currentSetData.every(d => selectedIndices.has(d.id));
+        
+        currentSetData.forEach(d => {
+            if (allSelected) selectedIndices.delete(d.id); // إلغاء تحديد الكل
+            else selectedIndices.add(d.id); // تحديد الكل
+        });
+        
+        updateCounter();
+        renderGrid();
     }
 
+    function updateCounter() {
+        document.getElementById('selection-counter').innerText = `${selectedIndices.size} كلمات للحفظ`;
+    }
+
+    // منطق الفلاش كاردز (نفس السابق مع تحسينات بصرية)
     function startFlashcards() {
         if (selectedIndices.size === 0) { alert("اختر كلمة واحدة على الأقل!"); return; }
-        practiceQueue = allData.filter(d => selectedIndices.has(d.id)).sort(() => Math.random() - 0.5);
+        
+        // جلب الكلمات المختارة فقط
+        practiceQueue = allData.filter(d => selectedIndices.has(d.id));
+        // خلط عشوائي للمراجعة
+        practiceQueue.sort(() => Math.random() - 0.5);
+        
         currentCardIndex = 0;
         showCard(0);
         document.getElementById('flashcard-modal').classList.remove('hidden');
     }
 
-    function showCard(index) {
-        const card = practiceQueue[index];
-        const cardElem = document.getElementById('card-element');
-        cardElem.classList.remove('flipped');
+    function showCard(idx) {
+        const card = practiceQueue[idx];
+        const el = document.getElementById('card-element');
+        el.classList.remove('flipped'); // إعادة للوجه الأول
+        
         setTimeout(() => {
             document.getElementById('fc-word').innerText = card.word;
             document.getElementById('fc-pos').innerText = card.pos;
-            document.getElementById('fc-def').innerText = card.definition;
+            document.getElementById('fc-def').innerText = card.def;
             document.getElementById('fc-level').innerText = card.cefr;
-            document.getElementById('current-index').innerText = index + 1;
+            document.getElementById('current-index').innerText = idx + 1;
             document.getElementById('total-count').innerText = practiceQueue.length;
         }, 200);
     }
 
     function flipCard() { document.getElementById('card-element').classList.toggle('flipped'); }
-    function nextCard() { if (currentCardIndex < practiceQueue.length - 1) showCard(++currentCardIndex); else { alert("انتهيت! 🎉"); closeFlashcards(); }}
+    function nextCard() { if (currentCardIndex < practiceQueue.length-1) showCard(++currentCardIndex); else { alert("🎉 انتهت المجموعة!"); closeFlashcards(); }}
     function prevCard() { if (currentCardIndex > 0) showCard(--currentCardIndex); }
     function closeFlashcards() { document.getElementById('flashcard-modal').classList.add('hidden'); }
     function speakWord() { window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(practiceQueue[currentCardIndex].word); u.lang = 'en-GB'; window.speechSynthesis.speak(u); }
+
 </script>
 </body>
 </html>
